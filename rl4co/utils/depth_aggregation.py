@@ -184,44 +184,96 @@ def find_neigs(P, perm, inv, depth, method='first', increasing=True, depth_type=
   return None, None , None
 
 
-def MCMC(P,len_mcmc = 10000, burn_out = None, depth_type='distance', test_mode=False):
+import torch
+
+def MCMC(P, len_mcmc=10000, burn_out=None, depth_type='distance', test_mode=False):
+    # ensure P is a float tensor
+    if not torch.is_tensor(P):
+        P = torch.tensor(P, dtype=torch.float32)
+    else:
+        P = P.clone().float()
+    device = P.device
+    # keep a NumPy copy for get_depth
+    P_np = P.cpu().detach().numpy()
+
     n = P.shape[0]
-    if burn_out is None: burn_out = int(n*n)# check diaconis, mixing time n*np.log(n)?
-    perm = np.random.permutation(range(n))
-    depth = get_depth(P, perm, depth_type=depth_type)
-    inv = np.argsort(perm)
+    if burn_out is None:
+        burn_out = n * n
+
+    # initialize a random perm (torch) and its depth via NumPy-based get_depth
+    perm = torch.randperm(n, device=device)
+    perm_np = perm.cpu().numpy()
+    depth_val = get_depth(P_np, perm_np, depth_type)
+    depth = torch.tensor(depth_val, dtype=P.dtype, device=device)
+
+    inv = torch.argsort(perm)
+
     depths = []
     perms = []
-    for repe in range(burn_out+len_mcmc):
-        i_pair = np.random.randint(0,n-1)
-        i,j = inv[i_pair],inv[i_pair+1]
-        if depth_type=='distance': depth_ten = depth-P[i,j]+P[j,i]
-        elif  depth_type=='hamming': 
-            depth_ten = depth+(1-P[i,perm[i]])+ (1-P[j,perm[j]]) - (1-P[i,perm[j]]) - (1-P[j,perm[i]])
-    
-        else: #depth_ten = depth/P[i,j]*P[j,i]#this update causes numerical problems for large n
-            depth_ten = depth * (P[j,i]/P[i,j])
-            if np.isnan(depth_ten) or depth == 0 or depth is np.inf: 
-                perm[i],perm[j] = perm[j],perm[i]
-                depth_ten = get_depth(P, perm, depth_type=depth_type)
-                perm[i],perm[j] = perm[j],perm[i]
-                #print("recompute: ",P[i,j] , P[j,i] , np.random.random() , depth_ten,depth)
-        #print("check: ",i,j,P[i,j].round(4) , P[j,i].round(4) , depth_ten.round(4),depth.round(4),perm)
-        if (depth_type!='hamming' and P[i,j] < P[j,i]) or np.random.random() <= depth_ten/depth :#
-            #if depth < .0001: # a tolerance#recompute and avoid update, to avoid numerical errors
-            #depth = get_depth(P, perm, depth_type=depth_type)
-            #else: 
-            
-            depth = depth_ten                
-            
-            perm[i],perm[j] = perm[j],perm[i]
-            inv[i_pair],inv[i_pair+1] = inv[i_pair+1],inv[i_pair]
+
+    total_steps = burn_out + len_mcmc
+    for step in range(total_steps):
+        # pick a random adjacent‐pair in the current perm
+        i_pair = torch.randint(0, n - 1, (), device=device).item()
+        i = inv[i_pair].item()
+        j = inv[i_pair + 1].item()
+
+        # propose swapping positions i and j
+        if depth_type == 'distance':
+            depth_ten = depth - P[i, j] + P[j, i]
+        elif depth_type == 'hamming':
+            depth_ten = (
+                depth
+                + (1 - P[i, perm[i]]) + (1 - P[j, perm[j]])
+                - (1 - P[i, perm[j]]) - (1 - P[j, perm[i]])
+            )
+        else:
+            depth_ten = depth * (P[j, i] / P[i, j])
+            # catch numerical issues by recomputing via get_depth
+            if torch.isnan(depth_ten) or depth == 0 or depth == float('inf'):
+                tmp = perm[i].clone()
+                perm[i], perm[j] = perm[j], tmp
+                perm_np = perm.cpu().numpy()
+                dval = get_depth(P_np, perm_np, depth_type)
+                depth_ten = torch.tensor(dval, dtype=P.dtype, device=device)
+                # swap back
+                perm[j], perm[i] = perm[i], tmp
+
+        # Metropolis–Hastings acceptance
+        rand_val = torch.rand((), device=device).item()
+        threshold = float((depth_ten / depth).item())
+        cond1 = (depth_type != 'hamming') and (P[i, j] < P[j, i]).item()
+
+        if cond1 or rand_val <= threshold:
+            # accept
+            depth = depth_ten
+            tmp_perm = perm[i].clone()
+            perm[i], perm[j] = perm[j], tmp_perm
+
+            tmp_inv = inv[i_pair].clone()
+            inv[i_pair], inv[i_pair + 1] = inv[i_pair + 1], tmp_inv
+
             if test_mode:
-                assert(np.isclose(get_depth(P, perm, depth_type=depth_type),depth))
-        if repe>=burn_out: perms.append(perm.copy())
-        if repe>=burn_out: depths.append(depth)
-            
-    return np.array(depths), np.array(perms)
+                perm_np_check = perm.cpu().numpy()
+                dval_check = get_depth(P_np, perm_np_check, depth_type)
+                depth_check = torch.tensor(dval_check, dtype=P.dtype, device=device)
+                assert torch.allclose(depth_check, depth)
+
+        # after burn‐in, record
+        if step >= burn_out:
+            depths.append(depth.clone())
+            perms.append(perm.clone())
+
+    # stack into tensors
+    if depths:
+        depths_tensor = torch.stack(depths)
+        perms_tensor = torch.stack(perms)
+    else:
+        depths_tensor = torch.empty((0,), dtype=P.dtype, device=device)
+        perms_tensor = torch.empty((0, n), dtype=perm.dtype, device=device)
+
+    return depths_tensor, perms_tensor
+
 
 
 ################################################################################################
