@@ -57,7 +57,7 @@ class NoBaseline(REINFORCEBaseline):
 class SharedBaseline(REINFORCEBaseline):
     """Shared baseline: return mean of reward as baseline"""
 
-    def eval(self, td, reward, env=None, on_dim=1):  # e.g. [batch, pomo, ...]
+    def eval(self, td, reward, env=None, on_dim=-1):  # e.g. [batch, pomo, ...]
         return reward.mean(dim=on_dim, keepdims=True), 0
 
 
