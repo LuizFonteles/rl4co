@@ -8,6 +8,7 @@ import torch.nn.functional as F
 from tensordict.tensordict import TensorDict
 
 from rl4co.envs import RL4COEnvBase
+from rl4co.utils.depth_aggregation import MCMC
 from rl4co.utils.ops import batchify, gather_by_index, unbatchify, unbatchify_and_gather
 from rl4co.utils.pylogger import get_pylogger
 
@@ -404,6 +405,13 @@ class DecodingStrategy(metaclass=abc.ABCMeta):
     def sampling(logprobs, mask=None):
         """Sample an action with a multinomial distribution given by the log probabilities."""
         probs = logprobs.exp()
+        #not_normalized_probas, perms1 = da.MCMC(
+        #  probs[:20],len_mcmc = 1, burn_out = None, depth_type='distance', test_mode=False
+        #  )
+        #not_normalized_probas, perms2 = da.MCMC(
+        #  probs[20:],len_mcmc = 1, burn_out = None, depth_type='distance', test_mode=False
+        #  )
+        #selected = torch.tensor(np.append(perms1,perms2))
         selected = torch.multinomial(probs, 1).squeeze(1)
 
         if mask is not None:
