@@ -207,7 +207,7 @@ def MCMC(P, len_mcmc=10000, burn_out=None, depth_type='distance', test_mode=Fals
     original_dtype = P.dtype
     
     # Convert PyTorch tensor to NumPy for calculations
-    P_np = P.cpu().numpy()
+    P_np = P.cpu().detach().numpy()
     
     n = P_np.shape[0]
     if burn_out is None: 
@@ -317,4 +317,5 @@ def get_depth_prank(P,prankm):
 
 
 #
+
 
