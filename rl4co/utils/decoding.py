@@ -408,10 +408,10 @@ class DecodingStrategy(metaclass=abc.ABCMeta):
         """Sample an action with a multinomial distribution given by the log probabilities."""
         probs = logprobs.exp()
         not_normalized_probas, perms1 = MCMC(
-          probs[:20],len_mcmc = 1, burn_out = None, depth_type='distance', test_mode=False
+          probs[:20],len_mcmc = 1, burn_out = 100, depth_type='distance', test_mode=False
           )
         not_normalized_probas, perms2 = MCMC(
-          probs[20:],len_mcmc = 1, burn_out = None, depth_type='distance', test_mode=False
+          probs[20:],len_mcmc = 1, burn_out = 100, depth_type='distance', test_mode=False
           )
 
         selected = torch.cat((perms1.squeeze(0),perms2.squeeze(0)),0)
