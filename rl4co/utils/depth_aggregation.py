@@ -215,7 +215,7 @@ def MCMC(P, len_mcmc=10000, burn_out=None, depth_type='distance', test_mode=Fals
     
     # Use the original NumPy-based algorithm (fast!)
     perm = np.random.permutation(range(n))
-    depth = da.get_depth(P_np, perm, depth_type=depth_type)
+    depth = get_depth(P_np, perm, depth_type=depth_type)
     inv = np.argsort(perm)
     depths = []
     perms = []
@@ -231,7 +231,7 @@ def MCMC(P, len_mcmc=10000, burn_out=None, depth_type='distance', test_mode=Fals
         
         if np.isnan(depth_ten) or depth == 0 or depth is np.inf:
             perm[i], perm[j] = perm[j], perm[i]
-            depth_ten = da.get_depth(P_np, perm, depth_type=depth_type)
+            depth_ten = get_depth(P_np, perm, depth_type=depth_type)
             perm[i], perm[j] = perm[j], perm[i]
         
         if P_np[i,j] < P_np[j,i] or np.random.random() <= depth_ten/depth:
@@ -240,7 +240,7 @@ def MCMC(P, len_mcmc=10000, burn_out=None, depth_type='distance', test_mode=Fals
             inv[i_pair], inv[i_pair + 1] = inv[i_pair + 1], inv[i_pair]
         
         if test_mode:
-            assert(np.isclose(da.get_depth(P_np, perm, depth_type=depth_type), depth))
+            assert(np.isclose(get_depth(P_np, perm, depth_type=depth_type), depth))
         
         if repe >= burn_out: 
             perms.append(perm.copy())
@@ -317,5 +317,6 @@ def get_depth_prank(P,prankm):
 
 
 #
+
 
 
