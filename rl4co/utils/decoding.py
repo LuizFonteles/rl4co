@@ -407,6 +407,8 @@ class DecodingStrategy(metaclass=abc.ABCMeta):
     def sampling(logprobs, mask=None):
         """Sample an action with a multinomial distribution given by the log probabilities."""
         probs = logprobs.exp()
+        probs[:20]=probs[:20].triu(1)+(1-probs[:20].triu(1).transpose(-1,-2)).tril(-1)
+        probs[20:]=probs[20:].triu(1)+(1-probs[20:].triu(1).transpose(-1,-2)).tril(-1)
         not_normalized_probas, perms1 = MCMC(
           probs[:20],len_mcmc = 1, burn_out = 100, depth_type='distance', test_mode=False
           )
