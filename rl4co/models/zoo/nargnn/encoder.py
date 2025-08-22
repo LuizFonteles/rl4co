@@ -75,7 +75,7 @@ class EdgeHeatmapGenerator(nn.Module):
         for index, graph in enumerate(graphs):
             edge_index, edge_attr = graph.edge_index, graph.edge_attr
             heatmap[index, edge_index[0], edge_index[1]] = edge_attr.flatten()
-            heatmap[index]=heatmap[index].triu() + (1-heatmap[index].triu(1).transpose(-1, -2)).tril(-1)
+            #heatmap[index]=heatmap[index].triu() + (1-heatmap[index].triu(1).transpose(-1, -2)).tril(-1)
 
         # This is commented out, because it undo the some of the sparsification.
         # if self.undirected_graph:
