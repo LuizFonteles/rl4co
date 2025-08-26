@@ -407,20 +407,20 @@ class DecodingStrategy(metaclass=abc.ABCMeta):
     def sampling(logprobs, mask=None):
         """Sample an action with a multinomial distribution given by the log probabilities."""
         probs = logprobs.exp()
-        probs1=probs[:20].triu(1)+(1-probs[:20].triu(1).transpose(-1,-2)).tril(-1)
-        probs2=probs[20:].triu(1)+(1-probs[20:].triu(1).transpose(-1,-2)).tril(-1)
-        probs1[0,:]=1
-        probs1[:,0]=0
-        probs2[0,:]=1
-        probs2[:,0]=0
-        not_normalized_probas, perms1 = MCMC(
-          probs1,len_mcmc = 1, burn_out = 100, depth_type='distance', test_mode=False
-          )
-        not_normalized_probas, perms2 = MCMC(
-          probs2,len_mcmc = 1, burn_out = 100, depth_type='distance', test_mode=False
-          )
-
-        selected = torch.cat((perms1.squeeze(0),perms2.squeeze(0)),0)
+        bs=int(logprobs.shape[0]/logprobs.shape[1])
+        len =logprobs.shape[1]
+        for i in range(bs):
+          probs_i=probs[i*len:(i+1)*len].triu(1)+(1-probs[i*len:(i+1)*len].triu(1).transpose(-1,-2)).tril(-1)
+          probs_i[0,:]=1
+          probs_i[:,0]=0
+          not_normalized_probas, perms = MCMC(
+            probs_i,len_mcmc = 1, burn_out = 100, depth_type='distance', test_mode=False
+            )
+    
+          if i ==0:
+            selected = perms.squeeze(0)
+          else:
+            selected = torch.cat((selected,perms.squeeze(0)),)
         
         #selected = torch.multinomial(probs, 1).squeeze(1)
 
