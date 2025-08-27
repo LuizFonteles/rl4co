@@ -414,7 +414,7 @@ class DecodingStrategy(metaclass=abc.ABCMeta):
           probs_i[0,:]=1
           probs_i[:,0]=0
           not_normalized_probas, perms = MCMC(
-            probs_i,len_mcmc = 1, burn_out = len*np.sqrt(len), depth_type='hamming', test_mode=False
+            probs_i,len_mcmc = 1, burn_out = (len*np.sqrt(len)).astype(int), depth_type='hamming', test_mode=False
             )
     
           if i ==0:
